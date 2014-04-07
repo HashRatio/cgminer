@@ -68,6 +68,7 @@ static cgtimer_t usb11_cgt;
 #define BITFORCE_TIMEOUT_MS 999
 #define MODMINER_TIMEOUT_MS 999
 #define AVALON_TIMEOUT_MS 999
+#define HASHRATIO_TIMEOUT_MS 999
 #define KLONDIKE_TIMEOUT_MS 999
 #define COINTERRA_TIMEOUT_MS 999
 #define HASHFAST_TIMEOUT_MS 999
@@ -81,6 +82,7 @@ static cgtimer_t usb11_cgt;
 #define BITFORCE_TIMEOUT_MS 200
 #define MODMINER_TIMEOUT_MS 100
 #define AVALON_TIMEOUT_MS 200
+#define HASHRATIO_TIMEOUT_MS 200
 #define KLONDIKE_TIMEOUT_MS 200
 #define COINTERRA_TIMEOUT_MS 200
 #define HASHFAST_TIMEOUT_MS 500
@@ -234,6 +236,17 @@ static struct usb_epinfo ava_epinfos[] = {
 
 static struct usb_intinfo ava_ints[] = {
 	USB_EPS(0, ava_epinfos)
+};
+#endif
+
+#ifdef USE_HASHRATIO
+static struct usb_epinfo hrto_epinfos[] = {
+  { LIBUSB_TRANSFER_TYPE_BULK,  64, EPI(1), 0, 0 },
+  { LIBUSB_TRANSFER_TYPE_BULK,  64, EPO(2), 0, 0 }
+};                         
+ 
+static struct usb_intinfo hrto_ints[] = {
+  USB_EPS(0, hrto_epinfos) 
 };
 #endif
 
@@ -498,6 +511,18 @@ static struct usb_find_devices find_dev[] = {
 		.timeout = AVALON_TIMEOUT_MS,
 		.latency = 10,
 		INTINFO(ava_ints) },
+#endif
+#ifdef USE_HASHRATIO
+  {  
+    .drv = DRIVER_hashratio,
+    .name = "HRTO",  
+    .ident = IDENT_HRTO,
+    .idVendor = IDVENDOR_FTDI,
+    .idProduct = 0x6001,
+    .config = 1,    
+    .timeout = HASHRATIO_TIMEOUT_MS,
+    .latency = 10,  
+    INTINFO(hrto_ints) },
 #endif
 #ifdef USE_HASHFAST
 	{
@@ -3471,6 +3496,7 @@ void usb_cleanup(void)
 			case DRIVER_modminer:
 			case DRIVER_icarus:
 			case DRIVER_avalon:
+			case DRIVER_hashratio:
 			case DRIVER_klondike:
 			case DRIVER_hashfast:
 				DEVWLOCK(cgpu, pstate);
