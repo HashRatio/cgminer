@@ -1704,13 +1704,26 @@ struct device_drv avalon_drv = {
 	.name = "AVA",
 	.drv_detect = avalon_detect,
 	.thread_prepare = avalon_prepare,
-	.hash_work = hash_queued_work,
-	.queue_full = avalon_fill,
+	.hash_work = hash_queued_work,    // hash_driver_work
+	.queue_full = avalon_fill,        // --
 	.scanwork = avalon_scanhash,
-	.flush_work = avalon_flush_work,
+	.flush_work = avalon_flush_work,  // --
 	.get_api_stats = avalon_api_stats,
-	.get_statline_before = get_avalon_statline_before,
-	.set_device = avalon_set_device,
+	.get_statline_before = get_avalon_statline_before,  // --
+	.set_device = avalon_set_device, // --
 	.reinit_device = avalon_init,
 	.thread_shutdown = avalon_shutdown,
 };
+
+//struct device_drv avalon2_drv = {
+//	.drv_id = DRIVER_avalon2,
+//	.dname = "avalon2",
+//	.name = "AV2",
+//	.get_api_stats = avalon2_api_stats,
+//	.drv_detect = avalon2_detect,
+//	.reinit_device = avalon2_init,
+//	.thread_prepare = avalon2_prepare,
+//	.hash_work = hash_driver_work,
+//	.scanwork = avalon2_scanhash,
+//	.thread_shutdown = avalon2_shutdown,
+//};
