@@ -72,6 +72,10 @@ char *curly = ":D";
 #include "driver-avalon2.h"
 #endif
 
+#ifdef USE_HASHRATIO
+#include "driver-hashratio.h"
+#endif
+
 #ifdef USE_BFLSC
 #include "driver-bflsc.h"
 #endif
@@ -92,7 +96,7 @@ char *curly = ":D";
 #include "driver-bitmain.h"
 #endif
 
-#if defined(USE_BITFORCE) || defined(USE_ICARUS) || defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_MODMINER)
+#if defined(USE_BITFORCE) || defined(USE_ICARUS) || defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_HASHRATIO) || defined(USE_MODMINER)
 #	define USE_FPGA
 #endif
 
@@ -212,6 +216,9 @@ static char *opt_set_avalon_freq;
 static char *opt_set_avalon2_freq;
 static char *opt_set_avalon2_fan;
 static char *opt_set_avalon2_voltage;
+#endif
+#ifdef USE_HASHRATIO
+static char *opt_set_hashratio_fan;
 #endif
 #ifdef USE_KLONDIKE
 char *opt_klondike_options = NULL;
@@ -1105,6 +1112,11 @@ static struct opt_table opt_config_table[] = {
 		     set_avalon2_voltage, NULL, &opt_set_avalon2_voltage,
 		     "Set Avalon2 core voltage, in millivolts"),
 #endif
+#ifdef USE_HASHRATIO
+	OPT_WITH_CBARG("--hashratio-fan",
+				   set_hashratio_fan, NULL, &opt_set_hashratio_fan,
+				   "Set Hashratio target fan speed"),
+#endif
 #ifdef USE_BAB
 	OPT_WITH_ARG("--bab-options",
 		     opt_set_charp, NULL, &opt_bab_options,
@@ -1598,6 +1610,9 @@ static char *opt_verusage_and_exit(const char *extra)
 #endif
 #ifdef USE_AVALON2
 		"avalon2 "
+#endif
+#ifdef USE_HASHRATIO
+		"hashratio "
 #endif
 #ifdef USE_BFLSC
 		"bflsc "
@@ -6718,7 +6733,7 @@ void set_target(unsigned char *dest_target, double diff)
 	memcpy(dest_target, target, 32);
 }
 
-#ifdef USE_AVALON2
+#if defined(USE_AVALON2) || defined(USE_HASHRATIO)
 void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint32_t nonce2, uint32_t nonce)
 {
 	struct cgpu_info *cgpu = thr->cgpu;
@@ -7646,13 +7661,13 @@ void hash_driver_work(struct thr_info *mythr)
 		struct timeval diff;
 		int64_t hashes;
 
-#ifndef USE_AVALON2
+#if !defined(USE_AVALON2) || !defined(USE_HASHRATIO)
 		mythr->work_update = false;
 #endif
 
 		hashes = drv->scanwork(mythr);
 
-#ifndef USE_AVALON2
+#if !defined(USE_AVALON2) || !defined(USE_HASHRATIO)
 		/* Reset the bool here in case the driver looks for it
 		 * synchronously in the scanwork loop. */
 		mythr->work_restart = false;

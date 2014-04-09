@@ -247,6 +247,7 @@ static inline int fsync (int fd)
 	DRIVER_ADD_COMMAND(bab) \
 	DRIVER_ADD_COMMAND(minion) \
 	DRIVER_ADD_COMMAND(ants1) \
+	DRIVER_ADD_COMMAND(hashratio) \
 	DRIVER_ADD_COMMAND(avalon2) \
 	DRIVER_ADD_COMMAND(avalon)
 
@@ -434,7 +435,7 @@ struct cgpu_info {
 	struct cg_usb_info usbinfo;
 	bool blacklisted;
 #endif
-#if defined(USE_AVALON) || defined(USE_AVALON2)
+#if defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_HASHRATIO)
 	struct work **works;
 	int work_array;
 	int queued;

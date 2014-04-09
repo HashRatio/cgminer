@@ -43,6 +43,7 @@ cgminer_SOURCES	+= elist.h miner.h compat.h bench_block.h	\
 		   sha2.c sha2.h api.c
 
 cgminer_SOURCES	+= logging.c
+cgminer_SOURCES += crc16.c crc.h
 
 cgminer_SOURCES	+= klist.h klist.c
 
@@ -109,7 +110,11 @@ cgminer_SOURCES += driver-bab.c
 endif
 
 if HAS_AVALON2
-cgminer_SOURCES += driver-avalon2.c driver-avalon2.h crc16.c crc.h
+cgminer_SOURCES += driver-avalon2.c driver-avalon2.h
+endif
+
+if HAS_HASHRATIO
+cgminer_SOURCES += driver-hashratio.c driver-hashratio.h
 endif
 
 if HAS_MINION

@@ -281,6 +281,18 @@ if test "x$avalon2" = xyes; then
 fi
 AM_CONDITIONAL([HAS_AVALON2], [test x$avalon2 = xyes])
 
+hashratio="no"
+
+AC_ARG_ENABLE([hashratio],
+	[AC_HELP_STRING([--enable-hashratio],[Compile support for Hashratio (default disabled)])],
+	[hashratio=$enableval]
+	)
+if test "x$hashratio" = xyes; then
+	AC_DEFINE([USE_FPGA_SERIAL], [1], [Defined to 1 if serial support required])
+	AC_DEFINE([USE_HASHRATIO], [1], [Defined to 1 if Hashratio support is wanted])
+fi
+AM_CONDITIONAL([HAS_HASHRATIO], [test x$hashratio = xyes])
+
 
 minion="no"
 
@@ -340,7 +352,7 @@ else
 	want_libbitfury=false
 fi
 
-AM_CONDITIONAL([NEED_FPGAUTILS], [test x$avalon2$modminer != xno])
+AM_CONDITIONAL([NEED_FPGAUTILS], [test x$avalon2$hashratio$modminer != xnonono])
 AM_CONDITIONAL([WANT_USBUTILS], [test x$want_usbutils != xfalse])
 AM_CONDITIONAL([WANT_LIBBITFURY], [test x$want_libbitfury != xfalse])
 AM_CONDITIONAL([HAVE_CURSES], [test x$curses = xyes])
@@ -526,6 +538,12 @@ else
 	echo "  Avalon2.ASICs........: Disabled"
 fi
 
+if test "x$hashratio" = xyes; then
+	echo "  Hashratio.ASICs......: Enabled"
+else
+	echo "  Hashratio.ASICs......: Disabled"
+fi
+
 if test "x$minion" = xyes; then
 	echo "  BlackArrowMinion.ASIC: Enabled"
 else
@@ -604,7 +622,7 @@ else
 	echo "  ModMiner.FPGAs.......: Disabled"
 fi
 
-if test "x$avalon$avalon2$bab$bflsc$bitforce$bitfury$hashfast$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1" = xnononononononononononononononono; then
+if test "x$avalon$avalon2$hashratio$bab$bflsc$bitforce$bitfury$hashfast$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1" = xnonononononononononononononononono; then
 	AC_MSG_ERROR([No mining configured in])
 fi
 
