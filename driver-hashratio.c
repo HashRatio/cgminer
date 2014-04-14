@@ -226,15 +226,16 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 			info->fan[0] = tmp >> 16;
 			info->fan[1] = tmp & 0xffff;
 
-			memcpy(&(info->local_work), ar->data + 16, 4);
-			memcpy(&(info->hw_work), ar->data + 20, 4);
-
-			info->local_work = be32toh(info->local_work);
-			info->hw_work    = be32toh(info->hw_work);
-
-			info->local_works += info->local_work;
-			info->hw_works    += info->hw_work;
-
+			// local_work
+			memcpy(&tmp, ar->data + 8, 4);
+			tmp = be32toh(tmp);
+			info->local_works += tmp;
+			
+			// hw_work
+			memcpy(&tmp, ar->data + 12, 4);
+			tmp = be32toh(tmp);
+			info->hw_works += tmp;
+			
 			hashratio->temp = info->temp;
 			break;
 		case HRTO_P_FREQ:
@@ -686,10 +687,10 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		start = range * hashratio->device_id;
 
 		tmp = be32toh(start);
-		memcpy(send_pkg.data + 12, &tmp, 4);
+		memcpy(send_pkg.data + 8, &tmp, 4);
 
 		tmp = be32toh(range);
-		memcpy(send_pkg.data + 16, &tmp, 4);
+		memcpy(send_pkg.data + 12, &tmp, 4);
 
 		/* Package the data */
 		hashratio_init_pkg(&send_pkg, HRTO_P_SET, 1, 1);
