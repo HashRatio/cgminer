@@ -219,6 +219,7 @@ static char *opt_set_avalon2_voltage;
 #endif
 #ifdef USE_HASHRATIO
 static char *opt_set_hashratio_fan;
+static char *opt_set_hashratio_freq;
 #endif
 #ifdef USE_KLONDIKE
 char *opt_klondike_options = NULL;
@@ -1113,9 +1114,12 @@ static struct opt_table opt_config_table[] = {
 		     "Set Avalon2 core voltage, in millivolts"),
 #endif
 #ifdef USE_HASHRATIO
+	OPT_WITH_CBARG("--hashratio-freq",
+				   set_hashratio_freq, NULL, &opt_set_hashratio_freq,
+				   "Set frequency for Hashratio, MHz"),
 	OPT_WITH_CBARG("--hashratio-fan",
-                   set_hashratio_fan, NULL, &opt_set_hashratio_fan,
-                   "Set Hashratio target fan speed"),
+				   set_hashratio_fan, NULL, &opt_set_hashratio_fan,
+				   "Set Hashratio target fan speed"),
 #endif
 #ifdef USE_BAB
 	OPT_WITH_ARG("--bab-options",

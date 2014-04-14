@@ -351,7 +351,7 @@ else
 	want_libbitfury=false
 fi
 
-AM_CONDITIONAL([NEED_FPGAUTILS], [test x$avalon2$modminer != xno])
+AM_CONDITIONAL([NEED_FPGAUTILS], [test x$avalon2$hashratio$modminer != xnonono])
 AM_CONDITIONAL([WANT_USBUTILS], [test x$want_usbutils != xfalse])
 AM_CONDITIONAL([WANT_LIBBITFURY], [test x$want_libbitfury != xfalse])
 AM_CONDITIONAL([HAVE_CURSES], [test x$curses = xyes])
@@ -621,7 +621,7 @@ else
 	echo "  ModMiner.FPGAs.......: Disabled"
 fi
 
-if test "x$avalon$avalon2$hashratio$bab$bflsc$bitforce$bitfury$hashfast$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1" = xnononononononononononononononono; then
+if test "x$avalon$avalon2$hashratio$bab$bflsc$bitforce$bitfury$hashfast$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1" = xnonononononononononononononononono; then
 	AC_MSG_ERROR([No mining configured in])
 fi
 
