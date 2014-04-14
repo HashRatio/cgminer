@@ -42,9 +42,51 @@
 #define ASSERT1(condition) __maybe_unused static char sizeof_uint32_t_must_be_4[(condition)?1:-1]
 ASSERT1(sizeof(uint32_t) == 4);
 
-int opt_hashratio_fan_min = HRTO_DEFAULT_FAN_PWM;
+int opt_hashratio_fan_min = HRTO_DEFAULT_FAN_MIN;
 int opt_hashratio_fan_max = HRTO_DEFAULT_FAN_MAX;
 
+int opt_hashratio_freq = HRTO_DEFAULT_FREQUENCY;
+
+
+static int get_fan_pwm(int temp) {
+	int pwm;
+	uint8_t fan_pwm_arr[] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+		30, 37, 49, 61, 73, 85, 88, 91, 94, 97, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100};
+	if (temp < 0 || temp >= sizeof(fan_pwm_arr)/sizeof(fan_pwm_arr[0]) ||
+		fan_pwm_arr[temp] > opt_hashratio_fan_max) {
+		return opt_hashratio_fan_max;
+	}
+	pwm = HRTO_PWM_MAX - fan_pwm_arr[temp] * HRTO_PWM_MAX / 100;
+
+	if (pwm < opt_hashratio_fan_min) {
+		return opt_hashratio_fan_min;
+	}
+	if (pwm > opt_hashratio_fan_max) {
+		return opt_hashratio_fan_max;
+	}
+	return pwm;
+}
+
+char *set_hashratio_freq(char *arg)
+{
+	int val, ret;
+	
+	ret = sscanf(arg, "%d", &val);
+	if (ret != 1)
+		return "No values passed to hashratio-freq";
+	
+	if (val < HRTO_DEFAULT_FREQUENCY_MIN || val > HRTO_DEFAULT_FREQUENCY_MAX)
+		return "Invalid value passed to hashratio-freq";
+	
+	opt_hashratio_freq = val;
+	
+	return NULL;
+}
 
 static inline uint8_t rev8(uint8_t d)
 {
@@ -107,19 +149,6 @@ static int job_idcmp(uint8_t *job_id, char *pool_job_id)
 	return 0;
 }
 
-static inline int get_temp_max(struct hashratio_info *info)
-{
-	int i;
-//	for (i = 0; i < 2 * HRTO_DEFAULT_MODULARS; i++) {
-//		if (info->temp_max <= info->temp[i])
-//			info->temp_max = info->temp[i];
-//	}
-	for (i = 0; i < HRTO_TEMP_COUNT; i++) {
-		if (info->temp_max < info->temp[i])
-			info->temp_max = info->temp[i];
-	}
-	return info->temp_max;
-}
 
 extern void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint32_t nonce2, uint32_t nonce);
 static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *pkg)
@@ -190,8 +219,8 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 		case HRTO_P_STATUS:
 			memcpy(&tmp, ar->data, 4);
 			tmp = be32toh(tmp);
-			info->temp[0] = tmp >> 16;
-			info->temp[1] = tmp & 0xffff;
+			info->temp_max = info->temp = tmp;
+//			info->temp[1] = tmp & 0xffff;
 
 			memcpy(&tmp, ar->data + 4, 4);
 			tmp = be32toh(tmp);
@@ -207,8 +236,15 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 			info->local_works += info->local_work;
 			info->hw_works    += info->hw_work;
 
-			hashratio->temp = get_temp_max(info);
+			hashratio->temp = info->temp;
 			break;
+		case HRTO_P_FREQ:
+				if (ar->cnt != HRTO_DEFAULT_MODULARS) {
+					applog(LOG_DEBUG, "pkg count is NOT match modulars");
+					break;
+				}
+				memcpy(info->freq + ar->idx * 32,
+					   ar->data, ar->idx < 2 ? 32 : 16);
 		case HRTO_P_ACKDETECT:
 			break;
 		case HRTO_P_ACK:
@@ -516,6 +552,7 @@ static bool hashratio_detect_one(const char *devpath)
 	info->temp_history_index = 0;
 	info->temp_sum = 0;
 	info->temp_old = 0;
+//	info->get_result_counter = 0;
 
 	info->fd = -1;
 	/* Set asic to idle mode after detect */
@@ -526,8 +563,7 @@ static bool hashratio_detect_one(const char *devpath)
 
 static inline void hashratio_detect(bool __maybe_unused hotplug)
 {
-//	serial_detect(&hashratio_drv, hashratio_detect_one);
-	hashratio_detect_one("/dev/ttyUSB0");
+	serial_detect(&hashratio_drv, hashratio_detect_one);
 }
 
 static void hashratio_init(struct cgpu_info *hashratio)
@@ -579,6 +615,18 @@ static int polling(struct thr_info *thr)
 	while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
 		;
 	hashratio_get_result(thr, info->fd, &ar);
+	
+//	info->get_result_counter++;
+//	
+//	// get status
+//	if (info->get_result_counter % 10 == 0) {
+//		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
+//		hashratio_init_pkg(&send_pkg, HRTO_P_STATUS, 1, 1);
+//		
+//		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
+//			;
+//		hashratio_get_result(thr, info->fd, &ar);
+//	}
 
 	return 0;
 }
@@ -622,15 +670,18 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		cg_wunlock(&pool->data_lock);
 
 		/* Configuer the parameter from outside */
-		info->fan_pwm = opt_hashratio_fan_min;
-
-		/* Set the Fan */
 		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-
+		info->set_frequency = opt_hashratio_freq;
+		
 		// fan
+		info->fan_pwm = get_fan_pwm(hashratio->temp);  // set fan pwm
 		tmp = be32toh(info->fan_pwm);
 		memcpy(send_pkg.data, &tmp, 4);
 
+		// freq
+		tmp = be32toh(info->set_frequency);
+		memcpy(send_pkg.data + 4, &tmp, 4);
+		
 		/* Configure the nonce2 offset and range */
 		range = 0xffffffff / total_devices;
 		start = range * hashratio->device_id;
@@ -645,6 +696,19 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		hashratio_init_pkg(&send_pkg, HRTO_P_SET, 1, 1);
 		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
 			;
+		
+		/* pkg: get freq */
+		if (opt_debug) {
+			memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
+			hashratio_init_pkg(&send_pkg, HRTO_P_FREQ, 1, 1);
+			while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
+				;
+			while (ar->idx < ar->cnt) {
+				hashratio_get_result(thr, info->fd, &ar);
+			}
+			hexdump((uint8_t *)info->freq, HRTO_DEFAULT_MINERS);
+		}
+		
 		info->new_stratum = false;
 	}
 
@@ -687,10 +751,8 @@ static struct api_data *hashratio_api_stats(struct cgpu_info *cgpu)
 	root = api_add_percent(root, buf, &hwp, true);
 	
 	// Temperature
-	for (i = 0; i < HRTO_TEMP_COUNT; i++) {
-		sprintf(buf, "Temperature%d", i+1);
-		root = api_add_int(root, buf, &(info->temp[i]), false);
-	}
+	sprintf(buf, "Temperature");
+	root = api_add_int(root, buf, &(info->temp), false);
 
 	// Fan
 	for (i = 0; i < HRTO_FAN_COUNT; i++) {
