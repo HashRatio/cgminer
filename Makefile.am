@@ -117,10 +117,6 @@ if HAS_HASHRATIO
 cgminer_SOURCES += driver-hashratio.c driver-hashratio.h
 endif
 
-if HAS_HASHRATIO
-cgminer_SOURCES += driver-hashratio.c driver-hashratio.h crc16.c crc.h
-endif
-
 if HAS_MINION
 cgminer_SOURCES += driver-minion.c
 endif
