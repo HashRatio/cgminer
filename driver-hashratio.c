@@ -238,13 +238,13 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 			
 			hashratio->temp = info->temp;
 			break;
-		case HRTO_P_FREQ:
-				if (ar->cnt != HRTO_DEFAULT_MODULARS) {
-					applog(LOG_DEBUG, "pkg count is NOT match modulars");
-					break;
-				}
-				memcpy(info->freq + ar->idx * 32,
-					   ar->data, ar->idx < 2 ? 32 : 16);
+//		case HRTO_P_GET_FREQ:
+//				if (ar->cnt != HRTO_DEFAULT_MODULARS) {
+//					applog(LOG_DEBUG, "pkg count is NOT match modulars");
+//					break;
+//				}
+//				memcpy(info->freq + ar->idx * HRTO_P_DATA_LEN,
+//					   ar->data, ar->idx < 2 ? HRTO_P_DATA_LEN : 16);
 		case HRTO_P_ACKDETECT:
 			break;
 		case HRTO_P_ACK:
@@ -552,6 +552,7 @@ static bool hashratio_detect_one(const char *devpath)
 	info->temp_history_index = 0;
 	info->temp_sum = 0;
 	info->temp_old = 0;
+	info->default_freq = opt_hashratio_freq;
 //	info->get_result_counter = 0;
 
 	info->fd = -1;
@@ -631,6 +632,57 @@ static int polling(struct thr_info *thr)
 	return 0;
 }
 
+
+static void hashratio_freq_set(struct thr_info *thr) {
+	struct hashratio_pkg send_pkg;
+	struct cgpu_info *hashratio = thr->cgpu;
+	struct hashratio_info *info = hashratio->device_data;
+	
+	int i, j, n;
+	double matching_work_avg, ratio, new_freq;
+	
+	// calc avg matching work
+	for (i = 0; i < HRTO_DEFAULT_MINERS; i++) {
+		matching_work_avg += info->matching_work[i];
+	}
+	matching_work_avg /= HRTO_DEFAULT_MINERS;
+	
+	// calc target freq
+	if (info->default_freq >= HRTO_DEFAULT_FREQUENCY_MIN && matching_work_avg >= 800) {
+		for (i = 0; i < HRTO_DEFAULT_MINERS; i++) {
+			ratio = (double)info->matching_work[i] / matching_work_avg;
+			if (ratio > 1.0) {
+//				new_freq = ratio * (HRTO_DEFAULT_FREQUENCY_MAX - info->default_freq) + info->default_freq;
+				new_freq = ratio * info->default_freq;
+				if (new_freq > HRTO_DEFAULT_FREQUENCY_MAX) {
+					new_freq = HRTO_DEFAULT_FREQUENCY_MAX;
+				}
+			} else {
+				new_freq = ratio * (info->default_freq - HRTO_DEFAULT_FREQUENCY_MIN) + HRTO_DEFAULT_FREQUENCY_MIN;
+			}
+			info->target_freq[i] = (int)new_freq;
+		}
+	}
+	
+	// send freq settings
+	n = HRTO_DEFAULT_MINERS / HRTO_P_DATA_LEN;
+	for (i = 0; i <= n; i++) {
+		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
+		if (i == n) {
+			j = HRTO_DEFAULT_MINERS % HRTO_P_DATA_LEN - 1;
+		} else {
+			j = HRTO_P_DATA_LEN - 1;
+		}
+		// copy freq to data
+		for (; j >= 0; j--) {
+			send_pkg.data[j] = info->target_freq[i * HRTO_P_DATA_LEN + j];
+		}
+		hashratio_init_pkg(&send_pkg, HRTO_P_SET_FREQ, i, n);
+		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
+			;
+	}
+}
+
 static int64_t hashratio_scanhash(struct thr_info *thr)
 {
 	struct hashratio_pkg send_pkg;
@@ -638,7 +690,8 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	struct pool *pool;
 	struct cgpu_info *hashratio = thr->cgpu;
 	struct hashratio_info *info = hashratio->device_data;
-
+	struct hashratio_ret ret_pkg;
+	
 	int64_t h;
 	uint32_t tmp, range, start;
 	int i;
@@ -668,10 +721,9 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		cg_wlock(&pool->data_lock);
 		hashratio_stratum_pkgs(info->fd, pool, thr);
 		cg_wunlock(&pool->data_lock);
-
+		
 		/* Configuer the parameter from outside */
 		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-		info->set_frequency = opt_hashratio_freq;
 		
 		// fan
 		info->fan_pwm = get_fan_pwm(hashratio->temp);  // set fan pwm
@@ -679,8 +731,8 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		memcpy(send_pkg.data, &tmp, 4);
 
 		// freq
-		tmp = be32toh(info->set_frequency);
-		memcpy(send_pkg.data + 4, &tmp, 4);
+//		tmp = be32toh(info->set_frequency);
+//		memcpy(send_pkg.data + 4, &tmp, 4);
 		
 		/* Configure the nonce2 offset and range */
 		range = 0xffffffff / total_devices;
@@ -697,17 +749,22 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
 			;
 		
+		/* pkg: set freq */
+		hashratio_freq_set(thr);
+		
 		/* pkg: get freq */
-		if (opt_debug) {
-			memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-			hashratio_init_pkg(&send_pkg, HRTO_P_FREQ, 1, 1);
-			while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
-				;
-			while (ar->idx < ar->cnt) {
-				hashratio_get_result(thr, info->fd, &ar);
-			}
-			hexdump((uint8_t *)info->freq, HRTO_DEFAULT_MINERS);
-		}
+//		if (opt_debug) {
+//			memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
+//			hashratio_init_pkg(&send_pkg, HRTO_P_GET_FREQ, 1, 1);
+//			while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
+//				;
+//			
+//			hashratio_get_result(thr, info->fd, &ret_pkg);
+//			while (ret_pkg.idx < ret_pkg.cnt) {
+//				hashratio_get_result(thr, info->fd, &ret_pkg);
+//			}
+//			hexdump((uint8_t *)info->freq, HRTO_DEFAULT_MINERS);
+//		}
 		
 		info->new_stratum = false;
 	}

@@ -24,16 +24,16 @@
 #define HRTO_DEFAULT_MODULARS          5
 #define HRTO_DEFAULT_MINERS_PER_MODULAR 16
 /* total chips number */
-#define HRTO_DEFAULT_MINERS  (HRTO_DEFAULT_MODULARS * HRTO_DEFAULT_CHIPS_PER_MODULAR)
+#define HRTO_DEFAULT_MINERS  (HRTO_DEFAULT_MODULARS * 16)
 
 #define HRTO_PWM_MAX          0x3FF
 #define HRTO_DEFAULT_FAN_PWM  80 /* % */
 #define HRTO_DEFAULT_FAN_MIN  30
 #define HRTO_DEFAULT_FAN_MAX  100
 
-#define HRTO_DEFAULT_FREQUENCY      320 /* In MHz */
-#define HRTO_DEFAULT_FREQUENCY_MIN  200
-#define HRTO_DEFAULT_FREQUENCY_MAX  700
+#define HRTO_DEFAULT_FREQUENCY      14 /* unit: Multi */
+#define HRTO_DEFAULT_FREQUENCY_MIN  10
+#define HRTO_DEFAULT_FREQUENCY_MAX  18
 
 #define HRTO_FAN_COUNT  2
 //#define HRTO_TEMP_COUNT 1
@@ -59,7 +59,8 @@
 #define HRTO_P_REQUIRE   18
 #define HRTO_P_SET       19
 #define HRTO_P_TEST      20
-#define HRTO_P_FREQ      21
+#define HRTO_P_SET_FREQ  21
+#define HRTO_P_GET_FREQ  22
 
 #define HRTO_P_ACK        51
 #define HRTO_P_NAK        52
@@ -83,15 +84,16 @@ struct hashratio_info {
 	int fd;
 	int baud;
 	
-	int set_frequency;
+	int default_freq;
 
 	int fan_pwm;
 
 	int     temp;
 	int     fan[HRTO_FAN_COUNT];
-	uint8_t freq[HRTO_DEFAULT_MINERS];
+//	uint8_t freq[HRTO_DEFAULT_MINERS];
+	uint8_t target_freq[HRTO_DEFAULT_MINERS];
 
-//	int temp_max;
+	int temp_max;
 	int temp_history_count;
 	int temp_history_index;
 	int temp_sum;
@@ -129,7 +131,7 @@ struct hashratio_info {
 #define hashratio_close(fd) close(fd)
 
 extern char *set_hashratio_fan(char *arg);
-extern char *set_hashratio_freq(char *arg)
+extern char *set_hashratio_freq(char *arg);
 
 #endif /* USE_HASHRATIO */
 #endif	/* _HASHRATIO_H_ */

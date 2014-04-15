@@ -97,7 +97,7 @@ char *curly = ":D";
 #endif
 
 #if defined(USE_BITFORCE) || defined(USE_ICARUS) || defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_MODMINER) || defined(USE_HASHRATIO)
-#	define USE_FPGA
+#define USE_FPGA
 #endif
 
 struct strategies strategies[] = {
