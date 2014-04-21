@@ -168,11 +168,14 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 	if (thr) {
 		hashratio = thr->cgpu;
 		info = hashratio->device_data;
-	} else // FIXME: Should this happen at all!?
-		return 0;
+	}
+//	else // FIXME: Should this happen at all!?
+//		return 0;
 
 	memcpy((uint8_t *)ar, pkg, HRTO_READ_SIZE);
 
+	applog(LOG_DEBUG, "pkg.type, hex: %02x, dec: %d", ar->type, ar->type);
+	
 	if (ar->head[0] == HRTO_H1 && ar->head[1] == HRTO_H2) {
 		expected_crc = crc16(ar->data, HRTO_P_DATA_LEN);
 		actual_crc = (ar->crc[0] & 0xff) |
@@ -182,16 +185,16 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 		applog(LOG_DEBUG, "hashratio: %d: expected crc(%04x), actural_crc(%04x)", type, expected_crc, actual_crc);
 		if (expected_crc != actual_crc)
 			goto out;
-
+		
 		switch(type) {
 		case HRTO_P_NONCE:
 			memcpy(&miner,   ar->data + 0, 4);
 			memcpy(&pool_no, ar->data + 4, 4);
 			memcpy(&nonce2,  ar->data + 8, 4);
 			/* Calc time    ar->data + 12 */
-			memcpy(&nonce, ar->data + 16, 4);
+			memcpy(&nonce, ar->data + 12, 4);
 			memset(job_id, 0, 5);
-			memcpy(job_id, ar->data + 20, 4);
+			memcpy(job_id, ar->data + 16, 4);
 
 			miner = be32toh(miner);
 			pool_no = be32toh(pool_no);
@@ -202,15 +205,15 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 				info->matching_work[miner]++;
 			nonce2 = be32toh(nonce2);
 			nonce = be32toh(nonce);
-			nonce -= 0x180;  // TODO: ?
+//			nonce -= 0x180;
 
 			applog(LOG_DEBUG, "hashratio: Found! [%s] %d:(%08x) (%08x)",
 			       job_id, pool_no, nonce2, nonce);
 			/* FIXME:
 			 * We need remember the pre_pool. then submit the stale work */
-			pool = pools[pool_no];
-			if (job_idcmp(job_id, pool->swork.job_id))
-				break;
+//			pool = pools[pool_no];
+//			if (job_idcmp(job_id, pool->swork.job_id))
+//				break;
 
 			if (thr && !info->new_stratum)
 				submit_nonce2_nonce(thr, pool_no, nonce2, nonce);
@@ -425,12 +428,16 @@ static int hashratio_stratum_pkgs(int fd, struct pool *pool, struct thr_info *th
 
 	a = pool->coinbase_len / HRTO_P_DATA_LEN;
 	b = pool->coinbase_len % HRTO_P_DATA_LEN;
+	applog(LOG_DEBUG, "pool->coinbase_len: %d", pool->coinbase_len);
 	applog(LOG_DEBUG, "hashratio: Pool stratum message COINBASE: %d %d", a, b);
 	for (i = 0; i < a; i++) {
 		memcpy(pkg.data, pool->coinbase + i * 32, 32);
 		hashratio_init_pkg(&pkg, HRTO_P_COINBASE, i + 1, a + (b ? 1 : 0));
 		while (hashratio_send_pkg(fd, &pkg, thr) != HRTO_SEND_OK)
 			;
+		if (i % 25 == 0) {
+			cgsleep_ms(2);
+		}
 	}
 	if (b) {
 		memset(pkg.data, 0, HRTO_P_DATA_LEN);
@@ -726,7 +733,8 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
 		
 		// fan
-		info->fan_pwm = get_fan_pwm(hashratio->temp);  // set fan pwm
+//		info->fan_pwm = get_fan_pwm(hashratio->temp);  // set fan pwm
+		info->fan_pwm = 800;
 		tmp = be32toh(info->fan_pwm);
 		memcpy(send_pkg.data, &tmp, 4);
 
@@ -750,7 +758,7 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 			;
 		
 		/* pkg: set freq */
-		hashratio_freq_set(thr);
+//		hashratio_freq_set(thr);
 		
 		/* pkg: get freq */
 //		if (opt_debug) {
@@ -770,6 +778,7 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	}
 
 	polling(thr);
+	cgsleep_ms(50);
 
 	h = 0;
 	h += info->local_work;

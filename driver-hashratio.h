@@ -48,26 +48,26 @@
 #define HRTO_P_COUNT	39
 #define HRTO_P_DATA_LEN		(HRTO_P_COUNT - 7)
 
-#define HRTO_P_DETECT    10
-#define HRTO_P_STATIC    11
-#define HRTO_P_JOB_ID    12
-#define HRTO_P_COINBASE  13
-#define HRTO_P_MERKLES   14
-#define HRTO_P_HEADER    15
-#define HRTO_P_POLLING   16
-#define HRTO_P_TARGET    17
-#define HRTO_P_REQUIRE   18
-#define HRTO_P_SET       19
-#define HRTO_P_TEST      20
-#define HRTO_P_SET_FREQ  21
-#define HRTO_P_GET_FREQ  22
+#define HRTO_P_DETECT    10  // 0x0a
+#define HRTO_P_STATIC    11  // 0x0b
+#define HRTO_P_JOB_ID    12  // 0x0c
+#define HRTO_P_COINBASE  13  // 0x0d
+#define HRTO_P_MERKLES   14  // 0x0e
+#define HRTO_P_HEADER    15  // 0x0f
+#define HRTO_P_POLLING   16  // 0x10
+#define HRTO_P_TARGET    17  // 0x11
+#define HRTO_P_REQUIRE   18  // 0x12
+#define HRTO_P_SET       19  // 0x13
+#define HRTO_P_TEST      20  // 0x14
+#define HRTO_P_SET_FREQ  21  // 0x15
+#define HRTO_P_GET_FREQ  22  // 0x16
 
-#define HRTO_P_ACK        51
-#define HRTO_P_NAK        52
-#define HRTO_P_NONCE      53
-#define HRTO_P_STATUS     54
-#define HRTO_P_ACKDETECT  55
-#define HRTO_P_TEST_RET   56
+#define HRTO_P_ACK        51 // 0x33
+#define HRTO_P_NAK        52 // 0x34
+#define HRTO_P_NONCE      53 // 0x35
+#define HRTO_P_STATUS     54 // 0x36
+#define HRTO_P_ACKDETECT  55 // 0x37
+#define HRTO_P_TEST_RET   56 // 0x38
 /* Hashratio protocol package type */
 
 struct hashratio_pkg {
