@@ -96,6 +96,8 @@ char *curly = ":D";
 #include "driver-bitmain.h"
 #endif
 
+#include "hexdump.c"
+
 #if defined(USE_BITFORCE) || defined(USE_ICARUS) || defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_MODMINER) || defined(USE_HASHRATIO)
 #define USE_FPGA
 #endif
@@ -4259,6 +4261,9 @@ static void regen_hash(struct work *work)
 	unsigned char hash1[32];
 
 	flip80(swap32, data32);
+	
+	hexdump(swap, 80);
+	
 	sha256(swap, 80, hash1);
 	sha256(hash1, 32, (unsigned char *)(work->hash));
 }
@@ -7665,13 +7670,13 @@ void hash_driver_work(struct thr_info *mythr)
 		struct timeval diff;
 		int64_t hashes;
 
-#if !defined(USE_AVALON2) || !defined(USE_HASHRATIO)
+#if (!defined(USE_AVALON2) && !defined(USE_HASHRATIO))
 		mythr->work_update = false;
 #endif
 
 		hashes = drv->scanwork(mythr);
 
-#if !defined(USE_AVALON2) || !defined(USE_HASHRATIO)
+#if (!defined(USE_AVALON2) && !defined(USE_HASHRATIO))
 		/* Reset the bool here in case the driver looks for it
 		 * synchronously in the scanwork loop. */
 		mythr->work_restart = false;

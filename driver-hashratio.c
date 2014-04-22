@@ -174,7 +174,7 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 
 	memcpy((uint8_t *)ar, pkg, HRTO_READ_SIZE);
 
-	applog(LOG_DEBUG, "pkg.type, hex: %02x, dec: %d", ar->type, ar->type);
+//	applog(LOG_DEBUG, "pkg.type, hex: %02x, dec: %d", ar->type, ar->type);
 	
 	if (ar->head[0] == HRTO_H1 && ar->head[1] == HRTO_H2) {
 		expected_crc = crc16(ar->data, HRTO_P_DATA_LEN);
@@ -329,10 +329,10 @@ static int hashratio_send_pkg(int fd, const struct hashratio_pkg *pkg,
 	int nr_len = HRTO_WRITE_SIZE;
 
 	memcpy(buf, pkg, HRTO_WRITE_SIZE);
-	if (opt_debug) {
-		applog(LOG_DEBUG, "hashratio: Sent(%d):", nr_len);
-		hexdump((uint8_t *)buf, nr_len);
-	}
+//	if (opt_debug) {
+//		applog(LOG_DEBUG, "hashratio: Sent(%d):", nr_len);
+//		hexdump((uint8_t *)buf, nr_len);
+//	}
 
 	ret = write(fd, buf, nr_len);
 	if (unlikely(ret != nr_len)) {
@@ -491,10 +491,10 @@ static int hashratio_get_result(struct thr_info *thr, int fd_detect, struct hash
 	if (ret != HRTO_GETS_OK)
 		return ret;
 
-	if (opt_debug) {
-		applog(LOG_DEBUG, "hashratio: Get(ret = %d):", ret);
-		hexdump((uint8_t *)result, HRTO_READ_SIZE);
-	}
+//	if (opt_debug) {
+//		applog(LOG_DEBUG, "hashratio: Get(ret = %d):", ret);
+//		hexdump((uint8_t *)result, HRTO_READ_SIZE);
+//	}
 
 	return decode_pkg(thr, ar, result);
 }
