@@ -232,6 +232,7 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 			// local_work
 			memcpy(&tmp, ar->data + 8, 4);
 			tmp = be32toh(tmp);
+			info->local_work = tmp;
 			info->local_works += tmp;
 			
 			// hw_work
@@ -699,7 +700,7 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	struct hashratio_info *info = hashratio->device_data;
 	struct hashratio_ret ret_pkg;
 	
-	int64_t h;
+//	int64_t h;
 	uint32_t tmp, range, start;
 	int i;
 
@@ -778,11 +779,12 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	}
 
 	polling(thr);
-	cgsleep_ms(50);
-
-	h = 0;
-	h += info->local_work;
-	return h * 0xffffffff;
+	
+//	cgsleep_ms(50);
+//	h = 0;
+//	h += info->local_work;
+	
+	return (int64_t)info->local_work * 64 * 0xffffffff;
 }
 
 static struct api_data *hashratio_api_stats(struct cgpu_info *cgpu)
