@@ -561,7 +561,6 @@ static bool hashratio_detect_one(const char *devpath)
 	info->temp_sum = 0;
 	info->temp_old = 0;
 	info->default_freq = opt_hashratio_freq;
-//	info->get_result_counter = 0;
 
 	info->fd = -1;
 	/* Set asic to idle mode after detect */
@@ -700,10 +699,9 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	struct hashratio_info *info = hashratio->device_data;
 	struct hashratio_ret ret_pkg;
 	
-//	int64_t h;
 	uint32_t tmp, range, start;
 	int i;
-
+	
 	if (thr->work_restart || thr->work_update || info->first) {
 		info->new_stratum = true;
 		applog(LOG_DEBUG, "hashratio: New stratum: restart: %d, update: %d, first: %d",
@@ -779,10 +777,6 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 	}
 
 	polling(thr);
-	
-//	cgsleep_ms(50);
-//	h = 0;
-//	h += info->local_work;
 	
 	return (int64_t)info->local_work * 64 * 0xffffffff;
 }
