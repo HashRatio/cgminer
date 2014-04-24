@@ -27,13 +27,13 @@
 #define HRTO_DEFAULT_MINERS  (HRTO_DEFAULT_MODULARS * 16)
 
 #define HRTO_PWM_MAX          0x3FF
-#define HRTO_DEFAULT_FAN_PWM  80 /* % */
-#define HRTO_DEFAULT_FAN_MIN  30
-#define HRTO_DEFAULT_FAN_MAX  100
+#define HRTO_DEFAULT_FAN      80  /* N% */
+#define HRTO_DEFAULT_FAN_MIN  50  /* N% */
+#define HRTO_DEFAULT_FAN_MAX  100 /* N% */
 
-#define HRTO_DEFAULT_FREQUENCY      14 /* unit: Multi */
-#define HRTO_DEFAULT_FREQUENCY_MIN  10
-#define HRTO_DEFAULT_FREQUENCY_MAX  18
+#define HRTO_DEFAULT_FREQUENCY      280 /* MHz */
+#define HRTO_DEFAULT_FREQUENCY_MIN  100
+#define HRTO_DEFAULT_FREQUENCY_MAX  750
 
 #define HRTO_FAN_COUNT  2
 //#define HRTO_TEMP_COUNT 1
@@ -59,8 +59,6 @@
 #define HRTO_P_REQUIRE   18  // 0x12
 #define HRTO_P_SET       19  // 0x13
 #define HRTO_P_TEST      20  // 0x14
-#define HRTO_P_SET_FREQ  21  // 0x15
-#define HRTO_P_GET_FREQ  22  // 0x16
 
 #define HRTO_P_ACK        51 // 0x33
 #define HRTO_P_NAK        52 // 0x34

@@ -48,29 +48,29 @@ int opt_hashratio_fan_max = HRTO_DEFAULT_FAN_MAX;
 int opt_hashratio_freq = HRTO_DEFAULT_FREQUENCY;
 
 
-static int get_fan_pwm(int temp) {
-	int pwm;
-	uint8_t fan_pwm_arr[] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
-		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
-		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
-		30, 37, 49, 61, 73, 85, 88, 91, 94, 97, 100, 100, 100, 100, 100, 100,
-		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-		100, 100, 100, 100, 100, 100, 100};
-	if (temp < 0 || temp >= sizeof(fan_pwm_arr)/sizeof(fan_pwm_arr[0]) ||
-		fan_pwm_arr[temp] > opt_hashratio_fan_max) {
-		return opt_hashratio_fan_max;
-	}
-	pwm = HRTO_PWM_MAX - fan_pwm_arr[temp] * HRTO_PWM_MAX / 100;
-
-	if (pwm < opt_hashratio_fan_min) {
-		return opt_hashratio_fan_min;
-	}
-	if (pwm > opt_hashratio_fan_max) {
-		return opt_hashratio_fan_max;
-	}
-	return pwm;
-}
+//static int get_fan_pwm(int temp) {
+//	int pwm;
+//	uint8_t fan_pwm_arr[] = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+//		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+//		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+//		30, 37, 49, 61, 73, 85, 88, 91, 94, 97, 100, 100, 100, 100, 100, 100,
+//		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+//		100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+//		100, 100, 100, 100, 100, 100, 100};
+//	if (temp < 0 || temp >= sizeof(fan_pwm_arr)/sizeof(fan_pwm_arr[0]) ||
+//		fan_pwm_arr[temp] > opt_hashratio_fan_max) {
+//		return opt_hashratio_fan_max;
+//	}
+//	pwm = HRTO_PWM_MAX - fan_pwm_arr[temp] * HRTO_PWM_MAX / 100;
+//
+//	if (pwm < opt_hashratio_fan_min) {
+//		return opt_hashratio_fan_min;
+//	}
+//	if (pwm > opt_hashratio_fan_max) {
+//		return opt_hashratio_fan_max;
+//	}
+//	return pwm;
+//}
 
 char *set_hashratio_freq(char *arg)
 {
@@ -114,8 +114,8 @@ char *set_hashratio_fan(char *arg)
 	if (val1 < 0 || val1 > 100 || val2 < 0 || val2 > 100 || val2 < val1)
 		return "Invalid value passed to hashratio-fan";
 
-	opt_hashratio_fan_min = HRTO_PWM_MAX - val1 * HRTO_PWM_MAX / 100;
-	opt_hashratio_fan_max = HRTO_PWM_MAX - val2 * HRTO_PWM_MAX / 100;
+	opt_hashratio_fan_min = val1 * HRTO_PWM_MAX / 100;
+	opt_hashratio_fan_max = val2 * HRTO_PWM_MAX / 100;
 
 	return NULL;
 }
@@ -205,7 +205,6 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 				info->matching_work[miner]++;
 			nonce2 = be32toh(nonce2);
 			nonce = be32toh(nonce);
-//			nonce -= 0x180;
 
 			applog(LOG_DEBUG, "hashratio: Found! [%s] %d:(%08x) (%08x)",
 			       job_id, pool_no, nonce2, nonce);
@@ -242,13 +241,6 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 			
 			hashratio->temp = info->temp;
 			break;
-//		case HRTO_P_GET_FREQ:
-//				if (ar->cnt != HRTO_DEFAULT_MODULARS) {
-//					applog(LOG_DEBUG, "pkg count is NOT match modulars");
-//					break;
-//				}
-//				memcpy(info->freq + ar->idx * HRTO_P_DATA_LEN,
-//					   ar->data, ar->idx < 2 ? HRTO_P_DATA_LEN : 16);
 		case HRTO_P_ACKDETECT:
 			break;
 		case HRTO_P_ACK:
@@ -555,7 +547,7 @@ static bool hashratio_detect_one(const char *devpath)
 	strcpy(info->mm_version, mm_version);
 
 	info->baud     = HRTO_IO_SPEED;
-	info->fan_pwm  = HRTO_DEFAULT_FAN_PWM;
+	info->fan_pwm  = HRTO_DEFAULT_FAN / 100 * HRTO_PWM_MAX;
 	info->temp_max = 0;
 	info->temp_history_index = 0;
 	info->temp_sum = 0;
@@ -624,70 +616,7 @@ static int polling(struct thr_info *thr)
 		;
 	hashratio_get_result(thr, info->fd, &ar);
 	
-//	info->get_result_counter++;
-//	
-//	// get status
-//	if (info->get_result_counter % 10 == 0) {
-//		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-//		hashratio_init_pkg(&send_pkg, HRTO_P_STATUS, 1, 1);
-//		
-//		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
-//			;
-//		hashratio_get_result(thr, info->fd, &ar);
-//	}
-
 	return 0;
-}
-
-
-static void hashratio_freq_set(struct thr_info *thr) {
-	struct hashratio_pkg send_pkg;
-	struct cgpu_info *hashratio = thr->cgpu;
-	struct hashratio_info *info = hashratio->device_data;
-	
-	int i, j, n;
-	double matching_work_avg, ratio, new_freq;
-	
-	// calc avg matching work
-	for (i = 0; i < HRTO_DEFAULT_MINERS; i++) {
-		matching_work_avg += info->matching_work[i];
-	}
-	matching_work_avg /= HRTO_DEFAULT_MINERS;
-	
-	// calc target freq
-	if (info->default_freq >= HRTO_DEFAULT_FREQUENCY_MIN && matching_work_avg >= 800) {
-		for (i = 0; i < HRTO_DEFAULT_MINERS; i++) {
-			ratio = (double)info->matching_work[i] / matching_work_avg;
-			if (ratio > 1.0) {
-//				new_freq = ratio * (HRTO_DEFAULT_FREQUENCY_MAX - info->default_freq) + info->default_freq;
-				new_freq = ratio * info->default_freq;
-				if (new_freq > HRTO_DEFAULT_FREQUENCY_MAX) {
-					new_freq = HRTO_DEFAULT_FREQUENCY_MAX;
-				}
-			} else {
-				new_freq = ratio * (info->default_freq - HRTO_DEFAULT_FREQUENCY_MIN) + HRTO_DEFAULT_FREQUENCY_MIN;
-			}
-			info->target_freq[i] = (int)new_freq;
-		}
-	}
-	
-	// send freq settings
-	n = HRTO_DEFAULT_MINERS / HRTO_P_DATA_LEN;
-	for (i = 0; i <= n; i++) {
-		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-		if (i == n) {
-			j = HRTO_DEFAULT_MINERS % HRTO_P_DATA_LEN - 1;
-		} else {
-			j = HRTO_P_DATA_LEN - 1;
-		}
-		// copy freq to data
-		for (; j >= 0; j--) {
-			send_pkg.data[j] = info->target_freq[i * HRTO_P_DATA_LEN + j];
-		}
-		hashratio_init_pkg(&send_pkg, HRTO_P_SET_FREQ, i, n);
-		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
-			;
-	}
 }
 
 static int64_t hashratio_scanhash(struct thr_info *thr)
@@ -732,14 +661,14 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
 		
 		// fan
-//		info->fan_pwm = get_fan_pwm(hashratio->temp);  // set fan pwm
-		info->fan_pwm = 800;
+		info->fan_pwm = HRTO_PWM_MAX;
 		tmp = be32toh(info->fan_pwm);
 		memcpy(send_pkg.data, &tmp, 4);
 
 		// freq
-//		tmp = be32toh(info->set_frequency);
-//		memcpy(send_pkg.data + 4, &tmp, 4);
+		tmp = be32toh(info->default_freq);
+		memcpy(send_pkg.data + 4, &tmp, 4);
+		applog(LOG_DEBUG, "set freq: %d", info->default_freq);
 		
 		/* Configure the nonce2 offset and range */
 		range = 0xffffffff / total_devices;
@@ -756,23 +685,6 @@ static int64_t hashratio_scanhash(struct thr_info *thr)
 		while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
 			;
 		
-		/* pkg: set freq */
-//		hashratio_freq_set(thr);
-		
-		/* pkg: get freq */
-//		if (opt_debug) {
-//			memset(send_pkg.data, 0, HRTO_P_DATA_LEN);
-//			hashratio_init_pkg(&send_pkg, HRTO_P_GET_FREQ, 1, 1);
-//			while (hashratio_send_pkg(info->fd, &send_pkg, thr) != HRTO_SEND_OK)
-//				;
-//			
-//			hashratio_get_result(thr, info->fd, &ret_pkg);
-//			while (ret_pkg.idx < ret_pkg.cnt) {
-//				hashratio_get_result(thr, info->fd, &ret_pkg);
-//			}
-//			hexdump((uint8_t *)info->freq, HRTO_DEFAULT_MINERS);
-//		}
-		
 		info->new_stratum = false;
 	}
 
@@ -787,16 +699,43 @@ static struct api_data *hashratio_api_stats(struct cgpu_info *cgpu)
 	struct hashratio_info *info = cgpu->device_data;
 	int i, a, b;
 	char buf[24];
+	char buf2[256];
 	double hwp;
 
 	// mm version
 	sprintf(buf, "MM Version");
 	root = api_add_string(root, buf, info->mm_version, false);
 	
+	// asic freq
+	sprintf(buf, "Asic Freq (MHz)");
+	root = api_add_int(root, buf, &(info->default_freq), false);
+	
 	// match work count
-	for (i = 0; i < HRTO_DEFAULT_MINERS; i++) {
-		sprintf(buf, "Match work count%02d", i + 1);
-		root = api_add_int(root, buf, &(info->matching_work[i]), false);
+	for (i = 0; i < HRTO_DEFAULT_MODULARS; i++) {
+		sprintf(buf, "Match work Modular %02d", i + 1);
+		memset(buf2, 0, sizeof(buf2));
+		snprintf(buf2, sizeof(buf2),
+				 "%02d:%08d %02d:%08d %02d:%08d %02d:%08d "
+				 "%02d:%08d %02d:%08d %02d:%08d %02d:%08d "
+				 "%02d:%08d %02d:%08d %02d:%08d %02d:%08d "
+				 "%02d:%08d %02d:%08d %02d:%08d %02d:%08d",
+				i*16 + 1, info->matching_work[i*16 + 0],
+				i*16 + 2, info->matching_work[i*16 + 1],
+				i*16 + 3, info->matching_work[i*16 + 2],
+				i*16 + 4, info->matching_work[i*16 + 3],
+				i*16 + 5, info->matching_work[i*16 + 4],
+				i*16 + 6, info->matching_work[i*16 + 5],
+				i*16 + 7, info->matching_work[i*16 + 6],
+				i*16 + 8, info->matching_work[i*16 + 7],
+				i*16 + 9, info->matching_work[i*16 + 8],
+				i*16 + 10, info->matching_work[i*16 + 9],
+				i*16 + 11, info->matching_work[i*16 + 10],
+				i*16 + 12, info->matching_work[i*16 + 11],
+				i*16 + 13, info->matching_work[i*16 + 12],
+				i*16 + 14, info->matching_work[i*16 + 13],
+				i*16 + 15, info->matching_work[i*16 + 14],
+				i*16 + 16, info->matching_work[i*16 + 15]);
+		root = api_add_string(root, buf, buf2, true);
 	}
 	
 	// local works
