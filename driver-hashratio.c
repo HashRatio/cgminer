@@ -361,12 +361,13 @@ static int hashratio_stratum_pkgs(int fd, struct pool *pool, struct thr_info *th
 	int job_id_len;
 
 	/* Send out the first stratum message STATIC */
-	applog(LOG_DEBUG, "hashratio: Pool stratum message STATIC: %d, %d, %d, %d, %d",
+	applog(LOG_DEBUG, "hashratio: Pool stratum message STATIC: %d, %d, %d, %d, %d, %d",
 	       pool->coinbase_len,
 	       pool->nonce2_offset,
 	       pool->n2size,
 	       merkle_offset,
-	       pool->merkles);
+	       pool->merkles,
+		   pool->pool_no);
 	memset(pkg.data, 0, HRTO_P_DATA_LEN);
 	tmp = be32toh(pool->coinbase_len);
 	memcpy(pkg.data, &tmp, 4);

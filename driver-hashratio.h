@@ -27,7 +27,7 @@
 #define HRTO_DEFAULT_MINERS  (HRTO_DEFAULT_MODULARS * 16)
 
 #define HRTO_PWM_MAX          0x3FF
-#define HRTO_DEFAULT_FAN      80  /* N% */
+#define HRTO_DEFAULT_FAN      20  /* N% */
 #define HRTO_DEFAULT_FAN_MIN  50  /* N% */
 #define HRTO_DEFAULT_FAN_MAX  100 /* N% */
 
