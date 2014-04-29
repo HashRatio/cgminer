@@ -1149,6 +1149,20 @@ struct stratum_work {
 #define RBUFSIZE 8192
 #define RECVSIZE (RBUFSIZE - 4)
 
+struct last_work {
+	uint64_t nonce2;
+	unsigned char *coinbase;  //
+	int coinbase_len;  //
+	int n2size; //
+	int nonce2_offset; //
+	unsigned char header_bin[128]; //
+	struct stratum_work swork;  // job_id
+	char ntime[12];  //
+	double sdiff;  //
+	char *nonce1; //
+	int merkles; //
+};
+
 struct pool {
 	int pool_no;
 	int prio;
@@ -1287,6 +1301,8 @@ struct pool {
 	double sdiff;
 
 	struct timeval tv_lastwork;
+	
+	struct last_work last_work;
 };
 
 #define GETWORK_MODE_TESTPOOL 'T'

@@ -4189,11 +4189,15 @@ static bool stale_work(struct work *work, bool share)
 			return true;
 		}
 
-		same_job = true;
+		same_job = false;
 
 		cg_rlock(&pool->data_lock);
-		if (strcmp(work->job_id, pool->swork.job_id))
-			same_job = false;
+		if (strcmp(work->job_id, pool->swork.job_id) == 0 ||
+			(pool->last_work.swork.job_id != NULL &&
+			 strcmp(work->job_id, pool->last_work.swork.job_id) == 0)) {
+			same_job = true;
+		}
+		
 		cg_runlock(&pool->data_lock);
 
 		if (!same_job) {
@@ -6040,6 +6044,7 @@ static bool cnx_needed(struct pool *pool)
 static void wait_lpcurrent(struct pool *pool);
 static void pool_resus(struct pool *pool);
 static void gen_stratum_work(struct pool *pool, struct work *work);
+static void gen_stratum_last_work(struct pool *pool, struct work *work);
 
 static void stratum_resumed(struct pool *pool)
 {
@@ -6745,17 +6750,42 @@ void set_target(unsigned char *dest_target, double diff)
 #if defined(USE_AVALON2) || defined(USE_HASHRATIO)
 void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint32_t nonce2, uint32_t nonce)
 {
+	bool ret;
 	struct cgpu_info *cgpu = thr->cgpu;
 	struct device_drv *drv = cgpu->drv;
 
 	struct pool *pool = pools[pool_no];
 	struct work *work = make_work();
 
+//	nonce++; // for debug test
+	
 	pool->nonce2 = nonce2;
 	gen_stratum_work(pool, work);
-
 	work->device_diff = MIN(drv->working_diff, work->work_difficulty);
-	submit_nonce(thr, work, nonce);
+
+	ret = test_nonce(work, nonce);
+	
+	if (ret == false && !pool->swork.clean && pool->last_work.swork.job_id != NULL) {
+		free_work(work);
+		work = make_work();
+		
+		pool->last_work.nonce2 = nonce2;
+		gen_stratum_last_work(pool, work);
+		work->device_diff = MIN(drv->working_diff, work->work_difficulty);
+		ret = test_nonce(work, nonce);
+	}
+
+	if (ret) {
+		submit_tested_work(thr, work);
+	} else {
+		inc_hw_errors(thr);
+		goto out;
+	}
+	
+	if (opt_benchfile && opt_benchfile_display)
+		benchfile_dspwork(work, nonce);
+
+out:
 	free_work(work);
 }
 #endif
@@ -6836,6 +6866,85 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 	work->drv_rolllimit = 60;
 	calc_diff(work, work->sdiff);
 
+	cgtime(&work->tv_staged);
+}
+
+static void gen_stratum_last_work(struct pool *pool, struct work *work)
+{
+	unsigned char merkle_root[32], merkle_sha[64];
+	uint32_t *data32, *swap32;
+	uint64_t nonce2le;
+	int i;
+	
+	cg_wlock(&pool->data_lock);
+	
+	/* Update coinbase. Always use an LE encoded nonce2 to fill in values
+	 * from left to right and prevent overflow errors with small n2sizes */
+	nonce2le = htole64(pool->last_work.nonce2);
+	memcpy(pool->last_work.coinbase + pool->last_work.nonce2_offset, &nonce2le, pool->last_work.n2size);
+	work->nonce2     = pool->last_work.nonce2++;
+	work->nonce2_len = pool->last_work.n2size;
+	
+	/* Downgrade to a read lock to read off the pool variables */
+	cg_dwlock(&pool->data_lock);
+	
+	/* Generate merkle root */
+	gen_hash(pool->last_work.coinbase, merkle_root, pool->last_work.coinbase_len);
+	memcpy(merkle_sha, merkle_root, 32);
+	for (i = 0; i < pool->last_work.merkles; i++) {
+		if (pool->last_work.swork.merkle_bin[i] == NULL) {
+			break;  // TODO: fixed memcpy coredump
+		}
+		memcpy(merkle_sha + 32, pool->last_work.swork.merkle_bin[i], 32);
+		gen_hash(merkle_sha, merkle_root, 64);
+		memcpy(merkle_sha, merkle_root, 32);
+	}
+	data32 = (uint32_t *)merkle_sha;
+	swap32 = (uint32_t *)merkle_root;
+	flip32(swap32, data32);
+	
+	/* Copy the data template from header_bin */
+	memcpy(work->data, pool->last_work.header_bin, 112);
+	memcpy(work->data + 36, merkle_root, 32);
+	
+	/* Store the stratum work diff to check it still matches the pool's
+	 * stratum diff when submitting shares */
+	work->sdiff = pool->last_work.sdiff;
+	
+	/* Copy parameters required for share submission */
+	work->job_id = strdup(pool->last_work.swork.job_id);
+	work->nonce1 = strdup(pool->last_work.nonce1);
+	work->ntime  = strdup(pool->last_work.ntime);
+	cg_runlock(&pool->data_lock);
+	
+	if (opt_debug) {
+		char *header, *merkle_hash;
+		
+		header = bin2hex(work->data, 112);
+		merkle_hash = bin2hex((const unsigned char *)merkle_root, 32);
+		applog(LOG_DEBUG, "Generated stratum merkle %s", merkle_hash);
+		applog(LOG_DEBUG, "Generated stratum header %s", header);
+		applog(LOG_DEBUG, "Work job_id %s nonce2 %"PRIu64" ntime %s", work->job_id,
+		       work->nonce2, work->ntime);
+		free(header);
+		free(merkle_hash);
+	}
+	
+	calc_midstate(work);
+	set_target(work->target, work->sdiff);
+	
+	local_work++;
+	work->pool = pool;
+	work->stratum = true;
+	work->nonce = 0;
+	work->id = total_work_inc();
+	work->longpoll = false;
+	work->getwork_mode = GETWORK_MODE_STRATUM;
+	work->work_block = work_block;
+	/* Nominally allow a driver to ntime roll 60 seconds */
+	work->drv_rolllimit = 60;
+	calc_diff(work, work->sdiff);
+	
 	cgtime(&work->tv_staged);
 }
 

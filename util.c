@@ -1686,20 +1686,44 @@ static bool parse_notify(struct pool *pool, json_t *val)
 	}
 
 	cg_wlock(&pool->data_lock);
-	free(pool->swork.job_id);
+	free(pool->last_work.swork.job_id);
+	pool->last_work.swork.job_id = pool->swork.job_id;
 	pool->swork.job_id = job_id;
+	
 	snprintf(pool->prev_hash, 65, "%s", prev_hash);
 	cb1_len = strlen(coinbase1) / 2;
 	cb2_len = strlen(coinbase2) / 2;
 	snprintf(pool->bbversion, 9, "%s", bbversion);
 	snprintf(pool->nbit, 9, "%s", nbit);
+	memcpy(pool->last_work.ntime, pool->ntime, 9);
 	snprintf(pool->ntime, 9, "%s", ntime);
 	pool->swork.clean = clean;
+	
+	pool->last_work.coinbase_len = pool->coinbase_len;
 	alloc_len = pool->coinbase_len = cb1_len + pool->n1_len + pool->n2size + cb2_len;
+	
+	pool->last_work.nonce2_offset = pool->nonce2_offset;
 	pool->nonce2_offset = cb1_len + pool->n1_len;
 
+	for (i = 0; i < pool->last_work.merkles; i++) {
+		free(pool->last_work.swork.merkle_bin[i]);
+		pool->last_work.swork.merkle_bin[i] = NULL;
+	}
+	pool->last_work.merkles = 0;
+	
+	if (pool->merkles) {
+		pool->last_work.swork.merkle_bin = realloc(pool->last_work.swork.merkle_bin,
+												   sizeof(char *) * pool->merkles + 1);
+		for (i = 0; i < pool->merkles; i++) {
+			pool->last_work.swork.merkle_bin[i] = malloc(32);
+			memcpy(pool->last_work.swork.merkle_bin[i], pool->swork.merkle_bin[i], 32);
+		}
+		pool->last_work.merkles = pool->merkles;
+	}
+	
 	for (i = 0; i < pool->merkles; i++)
 		free(pool->swork.merkle_bin[i]);
+
 	if (merkles) {
 		pool->swork.merkle_bin = realloc(pool->swork.merkle_bin,
 						 sizeof(char *) * merkles + 1);
@@ -1731,6 +1755,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
 	/* nonce */		 8 +
 	/* workpadding */	 96;
 #endif
+	memcpy(pool->last_work.header_bin, pool->header_bin, 112);
 	snprintf(header, 225,
 		"%s%s%s%s%s%s%s",
 		pool->bbversion,
@@ -1758,7 +1783,10 @@ static bool parse_notify(struct pool *pool, json_t *val)
 		applog(LOG_ERR, "Failed to convert cb2 to cb2_bin in parse_notify");
 		goto out_unlock;
 	}
-	free(pool->coinbase);
+	//	free(pool->coinbase);
+	free(pool->last_work.coinbase);
+	pool->last_work.coinbase = pool->coinbase;
+	
 	align_len(&alloc_len);
 	pool->coinbase = calloc(alloc_len, 1);
 	if (unlikely(!pool->coinbase))
@@ -1772,6 +1800,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
 		applog(LOG_DEBUG, "Pool %d coinbase %s", pool->pool_no, cb);
 		free(cb);
 	}
+	
 out_unlock:
 	cg_wunlock(&pool->data_lock);
 
@@ -1807,7 +1836,7 @@ static bool parse_diff(struct pool *pool, json_t *val)
 
 	cg_wlock(&pool->data_lock);
 	old_diff = pool->sdiff;
-	pool->sdiff = diff;
+	pool->last_work.sdiff = pool->sdiff = diff;
 	cg_wunlock(&pool->data_lock);
 
 	if (old_diff != diff) {
@@ -2531,14 +2560,15 @@ resend:
 
 	cg_wlock(&pool->data_lock);
 	pool->sessionid = sessionid;
-	pool->nonce1 = nonce1;
+//	pool->last_work.nonce1 = pool->nonce1;
+	pool->last_work.nonce1 = pool->nonce1 = nonce1;
 	pool->n1_len = strlen(nonce1) / 2;
 	free(pool->nonce1bin);
 	pool->nonce1bin = calloc(pool->n1_len, 1);
 	if (unlikely(!pool->nonce1bin))
 		quithere(1, "Failed to calloc pool->nonce1bin");
 	hex2bin(pool->nonce1bin, pool->nonce1, pool->n1_len);
-	pool->n2size = n2size;
+	pool->last_work.n2size = pool->n2size = n2size;
 	cg_wunlock(&pool->data_lock);
 
 	if (sessionid)
@@ -2550,7 +2580,7 @@ out:
 		if (!pool->stratum_url)
 			pool->stratum_url = pool->sockaddr_url;
 		pool->stratum_active = true;
-		pool->sdiff = 1;
+		pool->last_work.sdiff = pool->sdiff = 1;
 		if (opt_protocol) {
 			applog(LOG_DEBUG, "Pool %d confirmed mining.subscribe with extranonce1 %s extran2size %d",
 			       pool->pool_no, pool->nonce1, pool->n2size);
@@ -2562,8 +2592,9 @@ out:
 			* presence of the sessionid parameter. */
 			cg_wlock(&pool->data_lock);
 			free(pool->sessionid);
-			free(pool->nonce1);
-			pool->sessionid = pool->nonce1 = NULL;
+//			free(pool->nonce1);
+			free(pool->last_work.nonce1);
+			pool->last_work.nonce1 = pool->sessionid = pool->nonce1 = NULL;
 			cg_wunlock(&pool->data_lock);
 
 			applog(LOG_DEBUG, "Failed to resume stratum, trying afresh");
