@@ -220,7 +220,7 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 		case HRTO_P_STATUS:
 			memcpy(&tmp, ar->data, 4);
 			tmp = be32toh(tmp);
-			info->temp = (tmp & 0x00f0) >> 8;
+			info->temp = (tmp & 0x000000ff);
 			if (info->temp_max < info->temp) {
 				info->temp_max = info->temp;
 			}
