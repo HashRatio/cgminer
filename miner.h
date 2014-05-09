@@ -247,6 +247,7 @@ static inline int fsync (int fd)
 	DRIVER_ADD_COMMAND(bab) \
 	DRIVER_ADD_COMMAND(minion) \
 	DRIVER_ADD_COMMAND(ants1) \
+	DRIVER_ADD_COMMAND(hashratio) \
 	DRIVER_ADD_COMMAND(avalon2) \
 	DRIVER_ADD_COMMAND(avalon)
 
@@ -434,7 +435,7 @@ struct cgpu_info {
 	struct cg_usb_info usbinfo;
 	bool blacklisted;
 #endif
-#if defined(USE_AVALON) || defined(USE_AVALON2)
+#if defined(USE_AVALON) || defined(USE_AVALON2) || defined(USE_HASHRATIO)
 	struct work **works;
 	int work_array;
 	int queued;
@@ -1148,6 +1149,20 @@ struct stratum_work {
 #define RBUFSIZE 8192
 #define RECVSIZE (RBUFSIZE - 4)
 
+struct last_work {
+	uint64_t nonce2;
+	unsigned char *coinbase;  //
+	int coinbase_len;  //
+	int n2size; //
+	int nonce2_offset; //
+	unsigned char header_bin[128]; //
+	struct stratum_work swork;  // job_id
+	char ntime[12];  //
+	double sdiff;  //
+	char *nonce1; //
+	int merkles; //
+};
+
 struct pool {
 	int pool_no;
 	int prio;
@@ -1286,6 +1301,8 @@ struct pool {
 	double sdiff;
 
 	struct timeval tv_lastwork;
+	
+	struct last_work last_work;
 };
 
 #define GETWORK_MODE_TESTPOOL 'T'

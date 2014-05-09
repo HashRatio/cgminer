@@ -50,6 +50,13 @@
 
 #define FTDI_VALUE_DATA_AVA 8
 
+// Hashratio
+#define FTDI_VALUE_BAUD_HRTO 0x001A
+#define FTDI_INDEX_BAUD_HRTO 0x0000
+
+#define FTDI_VALUE_DATA_HRTO 8
+
+
 // BitBurner
 #define BITBURNER_REQUEST ((uint8_t)0x42)
 #define BITBURNER_VALUE 0x4242
@@ -158,7 +165,8 @@ enum sub_ident {
 	IDENT_KLN,
 	IDENT_LLT,
 	IDENT_MMQ,
-	IDENT_NF1
+	IDENT_NF1,
+	IDENT_HRTO
 };
 
 struct usb_find_devices {
